@@ -1,74 +1,72 @@
-# scripts/crear_usuarios.py (solo para preparar DB)
-from pymongo import MongoClient
+# ubicacion: asistencia_dorci/ui/login.py
 
-def crear_usuarios():
-    cliente = MongoClient("mongodb://localhost:27017/")
-    db = cliente["control_asistencias_dorci"]
-    usuarios = db.usuarios
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLineEdit, QPushButton, QLabel, QMessageBox, QCheckBox
+from controllers.auth_controller import verificar_credenciales
+from utils import guardar_ultimo_usuario, cargar_ultimo_usuario
 
-    usuarios.delete_many({})  # Limpiar colección
-
-    usuarios.insert_many([
-        {"username": "admin", "password": "admin123", "rol": "admin"},
-        {"username": "usuario1", "password": "user123", "rol": "usuario"},
-    ])
-
-if __name__ == "__main__":
-    crear_usuarios()
-    print("Usuarios creados.")
-
-# ui/login.py
-
-from PyQt6.QtWidgets import (
-    QWidget, QLabel, QLineEdit, QPushButton,
-    QVBoxLayout, QMessageBox
-)
-from PyQt6.QtCore import Qt
-from controllers.auth_controller import validar_usuario
-
-class Login(QWidget):
+class LoginVentana(QDialog):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Login - Sistema de Asistencias DORCI")
-        self.setGeometry(300, 300, 350, 200)
-        self.init_ui()
+        self.setWindowTitle("Inicio de Sesión - Sistema de Asistencias DORCI")
+        self.setFixedSize(350, 230)
 
-    def init_ui(self):
+        self.user_rol = None
+        self.username = None
+
         layout = QVBoxLayout()
 
-        lbl_usuario = QLabel("Usuario:")
-        self.input_usuario = QLineEdit()
-        self.input_usuario.setPlaceholderText("Ingrese su usuario")
+        self.usuario_input = QLineEdit()
+        self.usuario_input.setPlaceholderText("Nombre de usuario")
+        layout.addWidget(QLabel("Usuario:"))
+        layout.addWidget(self.usuario_input)
 
-        lbl_password = QLabel("Contraseña:")
-        self.input_password = QLineEdit()
-        self.input_password.setPlaceholderText("Ingrese su contraseña")
-        self.input_password.setEchoMode(QLineEdit.EchoMode.Password)
+        self.contrasena_input = QLineEdit()
+        self.contrasena_input.setPlaceholderText("Contraseña")
+        self.contrasena_input.setEchoMode(QLineEdit.EchoMode.Password)
+        layout.addWidget(QLabel("Contraseña:"))
+        layout.addWidget(self.contrasena_input)
 
-        self.btn_login = QPushButton("Ingresar")
-        self.btn_login.clicked.connect(self.intentar_login)
+        self.check_recordar = QCheckBox("Recordar usuario")
+        layout.addWidget(self.check_recordar)
 
-        layout.addWidget(lbl_usuario)
-        layout.addWidget(self.input_usuario)
-        layout.addWidget(lbl_password)
-        layout.addWidget(self.input_password)
-        layout.addWidget(self.btn_login)
+        self.login_button = QPushButton("Iniciar Sesión")
+        self.login_button.clicked.connect(self.intentar_login)
+        layout.addWidget(self.login_button)
+
+        self.login_button.setDefault(True)
+        self.contrasena_input.returnPressed.connect(self.login_button.click)
 
         self.setLayout(layout)
+        
+        self.precargar_usuario()
+
+    def precargar_usuario(self):
+        """Revisa si hay un usuario guardado y lo pone en el campo de texto."""
+        ultimo_usuario = cargar_ultimo_usuario()
+        if ultimo_usuario:
+            self.usuario_input.setText(ultimo_usuario)
+            self.check_recordar.setChecked(True)
+            self.contrasena_input.setFocus()
 
     def intentar_login(self):
-        usuario = self.input_usuario.text().strip()
-        password = self.input_password.text().strip()
-
-        if not usuario or not password:
-            QMessageBox.warning(self, "Error", "Por favor ingrese usuario y contraseña")
+        username = self.usuario_input.text()
+        password = self.contrasena_input.text()
+        
+        if not username or not password:
+            QMessageBox.warning(self, "Datos incompletos", "Por favor, ingrese usuario y contraseña.")
             return
 
-        rol = validar_usuario(usuario, password)
-        if rol:
-            QMessageBox.information(self, "Bienvenido", f"Login exitoso como {rol}")
-            # Emitir señal o llamar ventana principal con rol
-            self.rol_usuario = rol
-            self.close()
+        es_valido, rol = verificar_credenciales(username, password)
+        
+        if es_valido:
+            if self.check_recordar.isChecked():
+                guardar_ultimo_usuario(username)
+            else:
+                guardar_ultimo_usuario(None) # Pasamos None para que se borre del config
+
+            self.username = username
+            self.user_rol = rol
+            self.accept()
         else:
-            QMessageBox.critical(self, "Error", "Usuario o contraseña incorrectos")
+            QMessageBox.critical(self, "Error de autenticación", "Usuario o contraseña incorrectos.")
+            self.contrasena_input.clear()

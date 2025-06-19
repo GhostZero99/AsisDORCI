@@ -1,67 +1,72 @@
-# ui/formulario_asistencia.py
-from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton, QMessageBox
-)
-from PyQt6.QtCore import QDateTime
+# ubicacion: asistencia_dorci/ui/formulario_asistencia.py
+
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLineEdit, QPushButton, QLabel, QMessageBox, QHBoxLayout
+from PyQt6.QtCore import QDate, QTime, Qt, QRegularExpression
+from PyQt6.QtGui import QIntValidator, QRegularExpressionValidator
 from controllers.asistencias_controller import guardar_asistencia
 
 class FormularioAsistencia(QDialog):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, parent=None):
+        super().__init__(parent)
         self.setWindowTitle("Registrar Asistencia")
-        self.setMinimumWidth(400)
+        # --- TAMAÑO ACTUALIZADO ---
+        self.setFixedSize(400, 400) # Aumentamos la altura para dar más espacio
+        # --------------------------
 
-        self.init_ui()
-
-    def init_ui(self):
-        layout = QVBoxLayout()
+        layout = QVBoxLayout(self)
 
         self.nombre_input = QLineEdit()
+        self.nombre_input.setPlaceholderText("Ingrese nombre completo")
+        nombre_regex = QRegularExpression("[a-zA-ZñÑáéíóúÁÉÍÓÚ\s]+")
+        nombre_validator = QRegularExpressionValidator(nombre_regex, self)
+        self.nombre_input.setValidator(nombre_validator)
+        layout.addWidget(QLabel("Nombre Completo:"))
+        layout.addWidget(self.nombre_input)
+
         self.cedula_input = QLineEdit()
+        self.cedula_input.setPlaceholderText("Ej: 12.345.678")
+        cedula_regex = QRegularExpression("[\d\.]+")
+        cedula_validator = QRegularExpressionValidator(cedula_regex, self)
+        self.cedula_input.setValidator(cedula_validator)
+        layout.addWidget(QLabel("Cédula de Identidad:"))
+        layout.addWidget(self.cedula_input)
+
+        self.fecha_input = QLineEdit()
+        self.fecha_input.setReadOnly(True)
+        self.fecha_input.setText(QDate.currentDate().toString("dd-MM-yyyy"))
+        layout.addWidget(QLabel("Fecha:"))
+        layout.addWidget(self.fecha_input)
+        
         self.hora_entrada_input = QLineEdit()
-        self.hora_salida_input = QLineEdit()
-
-        self.hora_entrada_input.setText(QDateTime.currentDateTime().toString("yyyy-MM-dd HH:mm:ss"))
         self.hora_entrada_input.setReadOnly(True)
+        self.hora_entrada_input.setText(QTime.currentTime().toString("hh:mm:ss"))
+        layout.addWidget(QLabel("Hora de Entrada:"))
+        layout.addWidget(self.hora_entrada_input)
 
-        layout.addLayout(self.crear_fila("Nombre completo:", self.nombre_input))
-        layout.addLayout(self.crear_fila("Cédula:", self.cedula_input))
-        layout.addLayout(self.crear_fila("Hora de entrada:", self.hora_entrada_input))
-        layout.addLayout(self.crear_fila("Hora de salida (opcional):", self.hora_salida_input))
+        self.guardar_button = QPushButton("Guardar Asistencia")
+        self.guardar_button.clicked.connect(self.guardar)
+        
+        self.nombre_input.returnPressed.connect(self.guardar_button.click)
+        self.cedula_input.returnPressed.connect(self.guardar_button.click)
 
-        btn_guardar = QPushButton("Guardar")
-        btn_guardar.clicked.connect(self.guardar)
-
-        layout.addWidget(btn_guardar)
-        self.setLayout(layout)
-
-    def crear_fila(self, etiqueta, campo):
-        fila = QHBoxLayout()
-        fila.addWidget(QLabel(etiqueta))
-        fila.addWidget(campo)
-        return fila
+        layout.addWidget(self.guardar_button)
 
     def guardar(self):
-        nombre = self.nombre_input.text().strip()
-        cedula = self.cedula_input.text().strip()
-        hora_entrada = self.hora_entrada_input.text().strip()
-        hora_salida = self.hora_salida_input.text().strip()
-
-        if not nombre or not cedula:
-            QMessageBox.warning(self, "Campos requeridos", "Nombre y Cédula son obligatorios.")
-            return
-
-        asistencia = {
-            "nombre": nombre,
-            "cedula": cedula,
-            "hora_entrada": hora_entrada,
-            "hora_salida": hora_salida if hora_salida else None
+        cedula_limpia = self.cedula_input.text().replace('.', '')
+        data = {
+            "nombre_completo": self.nombre_input.text().strip(),
+            "cedula": cedula_limpia,
+            "fecha": self.fecha_input.text(),
+            "hora_entrada": self.hora_entrada_input.text(),
+            "hora_salida": ""
         }
 
-        exito = guardar_asistencia(asistencia)
-        if exito:
+        if not data["nombre_completo"] or not data["cedula"]:
+            QMessageBox.warning(self, "Datos Incompletos", "El nombre y la cédula son obligatorios.")
+            return
+
+        if guardar_asistencia(data):
             QMessageBox.information(self, "Éxito", "Asistencia registrada correctamente.")
             self.accept()
         else:
-            QMessageBox.critical(self, "Error", "No se pudo guardar la asistencia.")
+            QMessageBox.critical(self, "Error", "No se pudo registrar la asistencia.")

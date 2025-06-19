@@ -1,0 +1,174 @@
+/* Hoja de Estilos DORCI - Tema Profesional Claro */
+
+/* Fuente principal para toda la aplicación */
+* {
+    font-family: "Segoe UI", Arial, sans-serif;
+}
+
+/* Ventana principal y diálogos */
+QMainWindow, QDialog {
+    background-color: #F2F2F2;
+}
+
+/* Barra de Navegación Lateral */
+QWidget#NavBar {
+    background-color: #2C3E50;
+}
+
+/* Título en la Barra de Navegación */
+QWidget#NavBar QLabel#titulo {
+    color: #ECF0F1;
+    font-size: 22px;
+    font-weight: bold;
+}
+
+/* Botones en la Barra de Navegación */
+QWidget#NavBar QPushButton {
+    background-color: #34495E;
+    color: #ECF0F1;
+    border: none;
+    padding: 12px;
+    font-size: 15px;
+    text-align: left;
+    padding-left: 20px;
+}
+
+QWidget#NavBar QPushButton:hover {
+    background-color: #4E6D8C;
+}
+
+QWidget#NavBar QPushButton:pressed {
+    background-color: #2C3E50;
+}
+
+/* Botones normales en las páginas */
+QPushButton {
+    background-color: #3498DB;
+    color: white;
+    border-radius: 4px;
+    padding: 10px;
+    font-size: 14px;
+    font-weight: bold;
+    border: 1px solid #2980B9;
+}
+
+QPushButton:hover {
+    background-color: #4DADEA;
+}
+
+QPushButton:disabled {
+    background-color: #BDC3C7;
+    border: 1px solid #AAB1B5;
+}
+
+
+/* --- SECCIÓN MODIFICADA --- */
+/* Campos de Texto */
+QLineEdit, QDateEdit {
+    background-color: #FFFFFF;
+    color: #2C3E50;
+    border: 1px solid #BDC3C7;
+    border-radius: 4px;
+    padding: 10px; /* Aumentamos el padding de 8px a 10px para más espacio vertical */
+    font-size: 14px;
+}
+/* ------------------------- */
+
+
+QLineEdit:focus, QDateEdit:focus {
+    border: 1px solid #3498DB;
+}
+
+/* Etiquetas de Texto */
+QLabel {
+    color: #2C3E50;
+    font-size: 14px;
+}
+
+/* Tabla */
+QTableWidget {
+    background-color: #FFFFFF;
+    color: #2C3E50;
+    border: 1px solid #E0E0E0;
+    gridline-color: #E0E0E0;
+    alternate-background-color: #F8F8F8;
+}
+
+/* Encabezados de la Tabla */
+QHeaderView::section {
+    background-color: #ECF0F1;
+    color: #2C3E50;
+    padding: 8px;
+    border: 1px solid #E0E0E0;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+/* Frame de los filtros */
+QFrame#FilterGroup {
+    border: 1px solid #E0E0E0;
+    border-radius: 5px;
+}
+
+/* Estilos para el Calendario */
+QCalendarWidget {
+    background-color: #FFFFFF;
+    border: 1px solid #3498DB;
+    border-radius: 5px;
+}
+QCalendarWidget QWidget#qt_calendar_navigationbar {
+    background-color: #3498DB;
+    color: white;
+    padding: 5px;
+}
+QCalendarWidget QToolButton {
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    background-color: transparent;
+    border: none;
+    margin: 5px;
+}
+QCalendarWidget QToolButton:hover {
+    background-color: #4DADEA;
+    border-radius: 10px;
+}
+QCalendarWidget QAbstractItemView {
+    background-color: #FFFFFF;
+    color: #2C3E50;
+    selection-background-color: #3498DB;
+}
+QCalendarWidget QTableView {
+    background-color: #FFFFFF;
+    gridline-color: #E0E0E0;
+}
+QCalendarWidget QTableView QHeaderView::section {
+    background-color: #F8F8F8;
+    color: #2C3E50;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 5px;
+    border: none;
+}
+QCalendarWidget QAbstractItemView:enabled {
+    color: #2C3E50;
+    font-size: 13px;
+}
+QCalendarWidget QAbstractItemView:disabled {
+    color: #BDC3C7;
+}
+QCalendarWidget QTableView::item#qt_calendar_today {
+    background-color: #ECF0F1;
+    color: #E74C3C;
+    font-weight: bold;
+}
+QCalendarWidget QTableView::item:selected {
+    background-color: #3498DB;
+    color: white;
+    border-radius: 12px;
+}
+QCalendarWidget QTableView::item:hover {
+    background-color: #A9D6F5;
+    color: #2C3E50;
+    border-radius: 12px;
+}

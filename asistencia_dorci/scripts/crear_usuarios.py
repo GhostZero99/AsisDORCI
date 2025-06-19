@@ -1,48 +1,44 @@
-# controllers/asistencias_controller.py
+# ubicacion: asistencia_dorci/scripts/crear_usuarios.py
 
-from pymongo import MongoClient
-import datetime
-import pandas as pd
+import bcrypt
+from database import db # La importación ahora funcionará por el modo de ejecución
 
-def obtener_conexion():
-    cliente = MongoClient("mongodb://localhost:27017/")
-    return cliente["control_asistencias_dorci"]
+def crear_admin_si_no_existe():
+    """
+    Verifica si existe un usuario con el rol 'admin'.
+    Si no existe, crea uno con credenciales por defecto y contraseña hasheada.
+    """
+    try:
+        usuarios_collection = db['usuarios']
+        admin_existente = usuarios_collection.find_one({'rol': 'admin'})
 
-def registrar_asistencia(nombre, cedula, hora_llegada, hora_salida):
-    db = obtener_conexion()
-    asistencias = db.asistencias
-    asistencia = {
-        "nombre": nombre,
-        "cedula": cedula,
-        "hora_llegada": hora_llegada,
-        "hora_salida": hora_salida,
-        "fecha_registro": datetime.datetime.now()
-    }
-    result = asistencias.insert_one(asistencia)
-    return result.inserted_id
+        if admin_existente:
+            print("✅ Un usuario administrador ya existe en la base de datos.")
+            return
 
-def obtener_todas_asistencias():
-    db = obtener_conexion()
-    asistencias = db.asistencias
-    registros = list(asistencias.find().sort("fecha_registro", -1))
-    return registros
+        print("No se encontró un usuario administrador. Creando uno nuevo...")
+        
+        admin_user = "admin"
+        admin_pass = "admin123"
 
-def exportar_asistencias_a_excel(ruta_archivo):
-    registros = obtener_todas_asistencias()
-    if not registros:
-        return False
+        password_bytes = admin_pass.encode('utf-8')
+        salt = bcrypt.gensalt()
+        hashed_password = bcrypt.hashpw(password_bytes, salt)
 
-    # Convertir documentos Mongo a DataFrame, ignorando _id ObjectId (convertir a str)
-    datos = []
-    for r in registros:
-        datos.append({
-            "Nombre": r.get("nombre", ""),
-            "Cédula": r.get("cedula", ""),
-            "Hora de Llegada": r.get("hora_llegada", ""),
-            "Hora de Salida": r.get("hora_salida", ""),
-            "Fecha Registro": r.get("fecha_registro", "").strftime("%Y-%m-%d %H:%M:%S") if r.get("fecha_registro") else ""
+        usuarios_collection.insert_one({
+            'username': admin_user,
+            'password': hashed_password,
+            'rol': 'admin'
         })
+        print("==========================================================")
+        print("🎉 Usuario Administrador Creado Exitosamente 🎉")
+        print(f"   Usuario: {admin_user}")
+        print(f"   Contraseña: {admin_pass}")
+        print("¡Recuerda cambiar esta contraseña desde la aplicación!")
+        print("==========================================================")
 
-    df = pd.DataFrame(datos)
-    df.to_excel(ruta_archivo, index=False)
-    return True
+    except Exception as e:
+        print(f"❌ Error al intentar crear el usuario administrador: {e}")
+
+if __name__ == "__main__":
+    crear_admin_si_no_existe()

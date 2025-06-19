@@ -1,125 +1,118 @@
-# controllers/asistencias_controller.py
+# ubicacion: asistencia_dorci/controllers/asistencias_controller.py
 
-from pymongo import MongoClient
-from datetime import datetime
-from bson import ObjectId
-import os
+from database import db
+from bson.objectid import ObjectId
 from openpyxl import Workbook
-from openpyxl.styles import Font
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
 
-def obtener_conexion():
+def guardar_asistencia(data):
     try:
-        cliente = MongoClient("mongodb://localhost:27017/")
-        db = cliente["control_asistencias_dorci"]
-        return db
-    except Exception as e:
-        print("Error de conexión:", e)
-        return None
-
-def guardar_asistencia(nombre, cedula, hora_entrada, hora_salida):
-    db = obtener_conexion()
-    if db:
-        asistencia = {
-            "nombre": nombre,
-            "cedula": cedula,
-            "hora_entrada": hora_entrada,
-            "hora_salida": hora_salida,
-            "fecha_registro": datetime.now()
-        }
-        try:
-            db.asistencias.insert_one(asistencia)
-            return True
-        except Exception as e:
-            print("Error al guardar asistencia:", e)
-            return False
-    return False
-
-def obtener_historial_asistencias():
-    db = obtener_conexion()
-    if db:
-        try:
-            return list(db.asistencias.find().sort("fecha_registro", -1))
-        except Exception as e:
-            print("Error al obtener historial:", e)
-            return []
-    return []
-
-def exportar_asistencias_a_excel(ruta_archivo):
-    asistencias = obtener_historial_asistencias()
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Historial Asistencias"
-
-    headers = ["Nombre", "Cédula", "Hora Entrada", "Hora Salida", "Fecha Registro"]
-    ws.append(headers)
-    for cell in ws[1]:
-        cell.font = Font(bold=True)
-
-    for r in asistencias:
-        ws.append([
-            r.get("nombre", ""),
-            r.get("cedula", ""),
-            r.get("hora_entrada", ""),
-            r.get("hora_salida", ""),
-            r.get("fecha_registro", "").strftime("%Y-%m-%d %H:%M:%S") if r.get("fecha_registro") else ""
-        ])
-
-    try:
-        wb.save(ruta_archivo)
+        asistencias_collection = db['asistencias']
+        asistencias_collection.insert_one(data)
         return True
     except Exception as e:
-        print("Error al exportar Excel:", e)
+        print(f"Error al guardar asistencia: {e}")
         return False
 
-def actualizar_asistencia(registro_id, datos_actualizados):
-    db = obtener_conexion()
-    if db:
-        try:
-            db.asistencias.update_one(
-                {"_id": ObjectId(registro_id)},
-                {"$set": datos_actualizados}
-            )
-            return True
-        except Exception as e:
-            print("Error al actualizar asistencia:", e)
-            return False
-    return False
-
-def exportar_asistencias_a_pdf(ruta_archivo):
-    registros = obtener_historial_asistencias()
+# --- FUNCIÓN MODIFICADA ---
+def obtener_asistencias(filtros=None):
+    """
+    Obtiene los registros de asistencia, aplicando filtros si se proporcionan.
+    'filtros' es un diccionario que puede contener 'cedula', 'fecha_inicio', 'fecha_fin'.
+    """
     try:
-        c = canvas.Canvas(ruta_archivo, pagesize=A4)
-        width, height = A4
+        asistencias_collection = db['asistencias']
+        query = {}
+        
+        if filtros:
+            if filtros.get("cedula"):
+                query["cedula"] = {"$regex": filtros["cedula"], "$options": "i"} # Búsqueda flexible
 
-        c.setFont("Helvetica-Bold", 16)
-        c.drawString(40, height - 40, "Reporte de Asistencias - DORCI")
+            if filtros.get("fecha_inicio") and filtros.get("fecha_fin"):
+                query["fecha"] = {
+                    "$gte": filtros["fecha_inicio"],
+                    "$lte": filtros["fecha_fin"]
+                }
+        
+        # Ordenamos los resultados por fecha descendente para ver los más recientes primero
+        return list(asistencias_collection.find(query).sort("fecha", -1))
+    except Exception as e:
+        print(f"Error al obtener asistencias: {e}")
+        return []
 
-        c.setFont("Helvetica", 10)
-        y = height - 70
-        c.drawString(40, y, "Nombre")
-        c.drawString(160, y, "Cédula")
-        c.drawString(260, y, "Entrada")
-        c.drawString(340, y, "Salida")
-        c.drawString(420, y, "Fecha Registro")
+def actualizar_asistencia(asistencia_id, nuevos_datos):
+    try:
+        asistencias_collection = db['asistencias']
+        obj_id = ObjectId(asistencia_id)
+        resultado = asistencias_collection.update_one({'_id': obj_id}, {'$set': nuevos_datos})
+        return resultado.modified_count > 0
+    except Exception as e:
+        print(f"Error al actualizar asistencia: {e}")
+        return False
 
-        y -= 20
-        for r in registros:
-            if y < 50:
-                c.showPage()
-                y = height - 50
-            c.drawString(40, y, (r.get("nombre", "") or "")[:18])
-            c.drawString(160, y, r.get("cedula", ""))
-            c.drawString(260, y, r.get("hora_entrada", ""))
-            c.drawString(340, y, r.get("hora_salida", ""))
-            fecha = r.get("fecha_registro")
-            fecha_str = fecha.strftime("%Y-%m-%d %H:%M") if fecha else ""
-            c.drawString(420, y, fecha_str)
-            y -= 20
+def eliminar_asistencia(asistencia_id):
+    try:
+        asistencias_collection = db['asistencias']
+        obj_id = ObjectId(asistencia_id)
+        resultado = asistencias_collection.delete_one({'_id': obj_id})
+        return resultado.deleted_count > 0
+    except Exception as e:
+        print(f"Error al eliminar asistencia: {e}")
+        return False
 
-        c.save()
+def exportar_a_excel(asistencias, filepath):
+    try:
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Historial de Asistencias"
+        headers = ["Nombre Completo", "Cédula", "Fecha", "Hora de Entrada", "Hora de Salida"]
+        ws.append(headers)
+        for item in asistencias:
+            ws.append([
+                item.get("nombre_completo", ""),
+                item.get("cedula", ""),
+                item.get("fecha", ""),
+                item.get("hora_entrada", ""),
+                item.get("hora_salida", "")
+            ])
+        wb.save(filepath)
         return True
     except Exception as e:
-        print("Error al generar PDF:", e)
+        print(f"Error al exportar a Excel: {e}")
+        return False
+
+def exportar_a_pdf(asistencias, filepath):
+    try:
+        doc = SimpleDocTemplate(filepath, pagesize=letter)
+        elements = []
+        styles = getSampleStyleSheet()
+        elements.append(Paragraph("Historial de Asistencias - DORCI", styles['h1']))
+        data = [["Nombre Completo", "Cédula", "Fecha", "H. Entrada", "H. Salida"]]
+        for item in asistencias:
+            data.append([
+                item.get("nombre_completo", ""),
+                item.get("cedula", ""),
+                item.get("fecha", ""),
+                item.get("hora_entrada", ""),
+                item.get("hora_salida", "")
+            ])
+        table = Table(data)
+        style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ])
+        table.setStyle(style)
+        elements.append(table)
+        doc.build(elements)
+        return True
+    except Exception as e:
+        print(f"Error al exportar a PDF: {e}")
         return False

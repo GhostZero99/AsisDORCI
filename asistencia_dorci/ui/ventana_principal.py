@@ -1,74 +1,90 @@
-from PyQt6.QtWidgets import (
-    QWidget, QLabel, QPushButton, QVBoxLayout, QApplication
-)
+# ubicacion: asistencia_dorci/ui/ventana_principal.py
+
+from PyQt6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, 
+                             QPushButton, QStackedWidget, QLabel, QFrame, QApplication)
+# --- NUEVAS IMPORTACIONES PARA ICONOS E IMÁGENES ---
+from PyQt6.QtGui import QFont, QIcon, QPixmap
+# ----------------------------------------------------
 from PyQt6.QtCore import Qt
-import sys
 
-from ui.formulario_asistencia import FormularioAsistencia
-from ui.historial_asistencias import HistorialAsistencias
-from ui.exportar_excel import ExportarExcel  # ✅ Importación del exportador
+from .historial_asistencias_page import HistorialAsistenciasPage
+from .user_management_page import UserManagementPage
+from .formulario_asistencia import FormularioAsistencia
 
-class VentanaPrincipal(QWidget):
-    def __init__(self):
+class VentanaPrincipal(QMainWindow):
+    def __init__(self, rol_usuario):
         super().__init__()
-        self.setWindowTitle("Sistema de Asistencias - DORCI")
-        self.setGeometry(100, 100, 600, 450)
-        self.init_ui()
+        self.rol_usuario = rol_usuario
+        self.setWindowTitle("Sistema de Control de Asistencias - AsisDORCI")
+        self.setMinimumSize(1100, 800)
+        self.setObjectName("VentanaPrincipal")
 
-    def init_ui(self):
-        titulo = QLabel("📝 Sistema de Control de Asistencias")
-        titulo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        titulo.setStyleSheet("font-size: 22px; font-weight: bold;")
+        # --- AÑADIMOS EL ÍCONO A LA VENTANA ---
+        self.setWindowIcon(QIcon("assets/logo.png"))
+        # ------------------------------------
 
-        # Botones principales
-        btn_registrar = QPushButton("Registrar Asistencia")
-        btn_historial = QPushButton("Ver Historial")
-        btn_exportar = QPushButton("Exportar a Excel")
-        btn_salir = QPushButton("Salir")
+        main_widget = QWidget()
+        main_layout = QHBoxLayout(main_widget)
+        main_layout.setSpacing(0)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # --- Barra de Navegación (Izquierda) ---
+        nav_bar = QWidget()
+        nav_bar.setObjectName("NavBar")
+        nav_bar.setFixedWidth(220)
+        nav_layout = QVBoxLayout(nav_bar)
+        nav_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
+        nav_layout.setContentsMargins(10, 20, 10, 20)
+        nav_layout.setSpacing(20)
 
-        # Estilos
-        estilo = "padding: 10px; font-size: 16px;"
-        btn_registrar.setStyleSheet(estilo)
-        btn_historial.setStyleSheet(estilo)
-        btn_exportar.setStyleSheet(estilo + "background-color: #5cb85c; color: white;")
-        btn_salir.setStyleSheet(estilo + "background-color: #d9534f; color: white;")
+        # --- MOSTRAMOS EL LOGO EN LUGAR DEL TÍTULO DE TEXTO ---
+        logo_label = QLabel()
+        pixmap = QPixmap("assets/logo.png")
+        # Escalar el pixmap a un tamaño razonable manteniendo la proporción
+        scaled_pixmap = pixmap.scaled(180, 180, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        logo_label.setPixmap(scaled_pixmap)
+        logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        nav_layout.addWidget(logo_label)
+        # ---------------------------------------------------
 
-        # Conexiones
-        btn_registrar.clicked.connect(self.abrir_formulario_asistencia)
-        btn_historial.clicked.connect(self.abrir_historial)
-        btn_exportar.clicked.connect(self.abrir_exportador)
-        btn_salir.clicked.connect(self.close)
+        self.btn_registrar = QPushButton("Registrar Asistencia")
+        self.btn_registrar.clicked.connect(self.abrir_formulario_asistencia)
+        nav_layout.addWidget(self.btn_registrar)
+        
+        linea = QFrame()
+        linea.setFrameShape(QFrame.Shape.HLine)
+        linea.setFrameShadow(QFrame.Shadow.Sunken)
+        nav_layout.addWidget(linea)
 
-        # Layout
-        layout_botones = QVBoxLayout()
-        layout_botones.addWidget(btn_registrar)
-        layout_botones.addWidget(btn_historial)
-        layout_botones.addWidget(btn_exportar)
-        layout_botones.addWidget(btn_salir)
-        layout_botones.setSpacing(15)
+        self.btn_historial = QPushButton("Historial de Asistencias")
+        self.btn_manage_users = QPushButton("Gestionar Usuarios")
+        
+        nav_layout.addWidget(self.btn_historial)
+        nav_layout.addWidget(self.btn_manage_users)
+        
+        nav_layout.addStretch()
 
-        layout_principal = QVBoxLayout()
-        layout_principal.addWidget(titulo)
-        layout_principal.addLayout(layout_botones)
-        layout_principal.setContentsMargins(100, 50, 100, 50)
+        self.btn_cerrar_sesion = QPushButton("Cerrar Sesión")
+        self.btn_cerrar_sesion.clicked.connect(lambda: QApplication.instance().exit(123))
+        nav_layout.addWidget(self.btn_cerrar_sesion)
 
-        self.setLayout(layout_principal)
+        if self.rol_usuario != 'admin':
+            self.btn_manage_users.hide()
 
-    # Funciones de apertura de ventanas
+        # ... (El resto del archivo no cambia) ...
+        self.stacked_widget = QStackedWidget()
+        self.historial_page = HistorialAsistenciasPage()
+        self.user_management_page = UserManagementPage()
+        self.stacked_widget.addWidget(self.historial_page)
+        self.stacked_widget.addWidget(self.user_management_page)
+        self.btn_historial.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.historial_page))
+        self.btn_manage_users.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.user_management_page))
+        main_layout.addWidget(nav_bar)
+        main_layout.addWidget(self.stacked_widget, stretch=1)
+        self.setCentralWidget(main_widget)
+        self.stacked_widget.setCurrentWidget(self.historial_page)
+
     def abrir_formulario_asistencia(self):
-        formulario = FormularioAsistencia()
-        formulario.exec()
-
-    def abrir_historial(self):
-        historial = HistorialAsistencias()
-        historial.exec()
-
-    def abrir_exportador(self):
-        exportar = ExportarExcel()
-        exportar.exec()
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    ventana = VentanaPrincipal()
-    ventana.show()
-    sys.exit(app.exec())
+        dialogo = FormularioAsistencia(self)
+        if dialogo.exec():
+            self.historial_page.cargar_historial()
